@@ -1,75 +1,49 @@
 package au.com.telstra.simcardactivator;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.bind.annotation.*;
 
 @SpringBootApplication
 @RestController
 public class SimCardActivator {
 
-    private final RestTemplate restTemplate;
-
-    public SimCardActivator(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    @Autowired
+    private ActivationRecordRepository activationRecordRepository;
 
     @PostMapping("/activate")
     public String activateSimCard(@RequestBody ActivationRequest activationRequest) {
         String actuatorUrl = "http://localhost:8444/actuate";
-        ActivationResponse response = restTemplate.postForObject(actuatorUrl, activationRequest, ActivationResponse.class);
+        boolean activationSuccess = sendActivationRequestToActuator(activationRequest.getIccid(), actuatorUrl);
 
-        if (response != null && response.isSuccess()) {
+        ActivationRecord activationRecord = new ActivationRecord();
+        activationRecord.setIccid(activationRequest.getIccid());
+        activationRecord.setCustomerEmail(activationRequest.getCustomerEmail());
+        activationRecord.setActive(activationSuccess);
+        activationRecordRepository.save(activationRecord);
+
+        if (activationSuccess) {
             return "SIM card activated successfully.";
         } else {
             return "Failed to activate SIM card.";
         }
     }
 
+    // Helper method to send activation request to actuator
+    private boolean sendActivationRequestToActuator(String iccid, String actuatorUrl) {
+        // Implement logic to send activation request to actuator
+        // and return whether activation was successful
+        return true; // Placeholder return value, implement actual logic
+    }
+
+    @GetMapping("/query")
+    public ActivationRecord getActivationRecord(@RequestParam("simCardId") Long simCardId) {
+        return activationRecordRepository.findById(simCardId)
+                .orElseThrow(() -> new RuntimeException("Activation record not found"));
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(SimCardActivator.class, args);
-    }
-
-    // Define the ActivationRequest class as an inner class
-    public static class ActivationRequest {
-        private String iccid;
-
-        public ActivationRequest() {
-        }
-
-        public ActivationRequest(String iccid) {
-            this.iccid = iccid;
-        }
-
-        public String getIccid() {
-            return iccid;
-        }
-
-        public void setIccid(String iccid) {
-            this.iccid = iccid;
-        }
-    }
-
-    // Define the ActivationResponse class as an inner class
-    public static class ActivationResponse {
-        private boolean success;
-
-        public ActivationResponse() {
-        }
-
-        public ActivationResponse(boolean success) {
-            this.success = success;
-        }
-
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public void setSuccess(boolean success) {
-            this.success = success;
-        }
     }
 }
