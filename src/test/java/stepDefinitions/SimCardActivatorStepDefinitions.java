@@ -1,47 +1,43 @@
 package stepDefinitions;
 
-import au.com.telstra.simcardactivator.SimCardActivator;
 import io.cucumber.java.en.Given;
-import io.cucumber.java.en.When;
 import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 public class SimCardActivatorStepDefinitions {
+
     @Autowired
     private TestRestTemplate restTemplate;
 
     private String iccid;
-    private String customerEmail;
-    private String activationResponse;
+    private ResponseEntity<String> response;
 
-    @Given("^a SIM card with ICCID \"([^\"]*)\"$")
-    public void givenASimCardWithICCID(String iccid) {
+    @Given("a SIM card with ICCID {string}")
+    public void a_SIM_card_with_ICCID(String iccid) {
         this.iccid = iccid;
     }
 
-    @Given("^a customer email address \"([^\"]*)\"$")
-    public void givenACustomerEmailAddress(String customerEmail) {
-        this.customerEmail = customerEmail;
+    @When("the activation request is submitted")
+    public void the_activation_request_is_submitted() {
+        String url = "http://localhost:8080/activate";
+        response = restTemplate.postForEntity(url, iccid, String.class);
     }
 
-    @When("^the activation request is sent$")
-    public void whenTheActivationRequestIsSent() {
-        String requestBody = "{\"iccid\": \"" + iccid + "\", \"customerEmail\": \"" + customerEmail + "\"}";
-        activationResponse = restTemplate.postForObject("/activate", requestBody, String.class);
+    @Then("the activation should be successful")
+    public void the_activation_should_be_successful() {
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("SIM card activated successfully.", response.getBody());
     }
 
-    @Then("^the SIM card should be successfully activated$")
-    public void thenTheSimCardShouldBeSuccessfullyActivated() {
-        assertEquals("SIM card activated successfully.", activationResponse);
-    }
-
-    @Then("^the activation should fail$")
-    public void thenTheActivationShouldFail() {
-        assertEquals("Failed to activate SIM card.", activationResponse);
+    @Then("the activation should fail")
+    public void the_activation_should_fail() {
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals("Failed to activate SIM card.", response.getBody());
     }
 }
